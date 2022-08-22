@@ -1,0 +1,160 @@
+image: fedora:latest
+before_script:
+  - dnf update -y
+  - dnf install -y gcc meson automake libtool make pkgconfig autoconf-archive nss-devel glib2-devel opensc gnutls-utils nss-tools openssl softhsm lcov valgrind libasan clang csbuild which xz
+
+Fedora meson:
+  stage: build
+  script:
+    - meson build --buildtype=release -Db_coverage=true
+    - ninja -C build
+    - meson test -C build
+    - meson dist -C build
+    - ninja coverage -C build
+  artifacts:
+    expire_in: '1 week'
+    when: always
+    paths:
+      - build/meson-logs/
+    reports:
+      junit: build/meson-logs/testlog.junit.xml
+
+.ubuntu:
+  image: ubuntu:latest
+  before_script:
+    - export DEBIAN_FRONTEND=noninteractive
+    - apt-get update -y
+    - apt-get install -y libglib2.0-dev libnss3-dev  pkgconf libtool make autoconf autoconf-archive automake libsofthsm2-dev softhsm2 softhsm2-common help2man gnutls-bin libcmocka-dev libusb-dev libudev-dev flex libnss3-tools libssl-dev libpcsclite1 opensc openssl
+
+Ubuntu build:
+  extends: .ubuntu
+  stage: build
+  script:
+    - ./autogen.sh
+    - make
+
+Ubuntu 16.04 build (oss-fuzz):
+  extends: .ubuntu
+  image: ubuntu:16.04
+  stage: build
+  script:
+    - ./autogen.sh
+    - make
+
+.centos7:
+  image: centos:7
+  before_script:
+    - yum update -y
+    - yum install -y gcc automake libtool make pkgconfig autoconf-archive nss-devel glib2-devel opensc gnutls-utils nss-tools openssl softhsm lcov valgrind libasan clang csbuild which
+
+CentOS 7 build:
+  extends: .centos7
+  stage: build
+  script:
+    - ./autogen.sh
+    - make
+
+CentOS 7 build and check:
+  extends: .centos7
+  stage: test
+  script:
+    - ./autogen.sh
+    - make check
+    - make dist
+  artifacts:
+    expire_in: '1 week'
+    when: always
+    paths:
+      - test-suite.log
+
+Ubuntu build and check:
+  extends: .ubuntu
+  stage: test
+  script:
+    - ./autogen.sh
+    - make check
+    - make dist
+  artifacts:
+    expire_in: '1 week'
+    when: always
+    paths:
+      - test-suite.log
+
+Fedora build:
+  stage: build
+  script:
+    - ./autogen.sh
+    - make
+
+Fedora build and check:
+  stage: test
+  script:
+    - ./autogen.sh --enable-code-coverage
+    - make check
+    - make code-coverage-capture
+    - lcov --summary libcacard-*-coverage.info
+    - make dist
+  artifacts:
+    expire_in: '1 week'
+    when: always
+    paths:
+      - test-suite.log
+      - libcacard-*-coverage
+
+Fedora memcheck:
+  stage: test
+  script:
+    - ./autogen.sh
+    - make memcheck-local
+  allow_failure: true
+
+Fedora asan:
+  stage: test
+  variables:
+    ASAN_OPTIONS: fast_unwind_on_malloc=false
+    LSAN_OPTIONS: suppressions=suppr.txt
+  script:
+    - ./autogen.sh
+    - make CFLAGS="-fsanitize=address" check || (cat test-suite.log && exit 1)
+  artifacts:
+    expire_in: '1 week'
+    when: always
+    paths:
+      - test-suite.log
+
+Fedora clang:
+  stage: build
+  variables:
+    CC: clang
+  script:
+    - ./autogen.sh
+    - make
+  artifacts:
+    expire_in: '1 week'
+    when: always
+    paths:
+      - test-suite.log
+  allow_failure: true
+
+Fedora csbuild:
+  stage: test
+  script:
+    - csbuild
+      --prep-cmd="./autogen.sh"
+      --build-cmd "make clean && make"
+      --color
+      --print-current
+
+pages:
+  stage: deploy
+  dependencies:
+    - Fedora meson
+  script:
+    - mv build/meson-logs/coveragereport/ public/
+  artifacts:
+    expire_in: 30 days
+    when: always
+    paths:
+      - public
+  only:
+    - master
