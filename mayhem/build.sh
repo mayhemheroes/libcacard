@@ -25,7 +25,7 @@ mv $SRC/nss $SRC/nss-nspr/
 mv $SRC/nspr $SRC/nss-nspr/
 cd $SRC/nss-nspr/
 # We do not need NSS to be built with address sanitizer
-CFLAGS="" CXXFLAGS="" nss/build.sh --static
+CFLAGS="" CXXFLAGS="" nss/build.sh --static --disable-tests
 
 # Create a package config for NSS
 cp dist/Debug/lib/pkgconfig/{nspr,nss}.pc
@@ -43,6 +43,10 @@ echo "Requires: nspr" >> dist/Debug/lib/pkgconfig/nss.pc
 export NSS_NSPR_PATH=$(realpath $SRC/nss-nspr/)
 export PKG_CONFIG_PATH=$NSS_NSPR_PATH/dist/Debug/lib/pkgconfig
 export LD_LIBRARY_PATH=$NSS_NSPR_PATH/dist/Debug/lib
+
+# Clang 22 emits DWARF 5 by default; ensure DWARF 4 for compatibility
+export CFLAGS="$CFLAGS -gdwarf-4"
+export CXXFLAGS="$CXXFLAGS -gdwarf-4"
 
 # compile libcacard
 BUILD=$WORK/meson
