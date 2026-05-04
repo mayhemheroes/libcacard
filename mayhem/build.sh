@@ -36,7 +36,7 @@ sed -i "s/NSPR/NSS/g" dist/Debug/lib/pkgconfig/nss.pc
 LIBS="-lssl -lsmime -lnssdev -lnss_static -lpk11wrap_static -lcryptohi"
 LIBS="$LIBS -lcerthi -lcertdb -lnssb -lnssutil -lnsspki -ldl -lm -lsqlite"
 LIBS="$LIBS -lsoftokn_static -lsha-x86_c_lib -lfreebl_static"
-LIBS="$LIBS -lgcm-aes-x86_c_lib -lhw-acc-crypto-avx -lhw-acc-crypto-avx2"
+LIBS="$LIBS -lghash-aes-x86_c_lib -lintel-gcm-wrap_c_lib -lgcm -lgcm-nodepend -lhw-acc-crypto-avx -lhw-acc-crypto-avx2"
 sed -i "s/Libs:.*/Libs: -L\${libdir} $LIBS/g" dist/Debug/lib/pkgconfig/nss.pc
 echo "Requires: nspr" >> dist/Debug/lib/pkgconfig/nss.pc
 
